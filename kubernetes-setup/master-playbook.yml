@@ -1,6 +1,12 @@
 ---
 - hosts: all
   become: true
+  vars:
+    proxy_ip: xx.xx.xx.xx:xx
+    proxy_env:
+      http_proxy: "http://{{ proxy_ip }}"
+      https_proxy: "http://{{ proxy_ip }}"
+      all_proxy: "socks5://{{ proxy_ip }}"
   tasks:
   - name: Install packages that allow apt to be used over HTTPS
     apt:
@@ -14,6 +20,11 @@
       - curl
       - software-properties-common 
       - gnupg2
+    environment: "{{ proxy_env }}"
+
+  - name: Set timezone to Asia/Shanghai
+    timezone:
+      name: Asia/Shanghai
 
   - name: Install containerd
     apt: 
@@ -23,6 +34,21 @@
     vars:
       packages:
       - containerd
+    environment: "{{ proxy_env }}"
+
+  - name: containerd proxy
+    lineinfile:
+      path: /lib/systemd/system/containerd.service
+      insertafter: '^\[Service\]'
+      line: Environment="HTTP_PROXY=http://{{ proxy_ip }}" "NO_PROXY=192.168.50.10/16,10.96.0.0/12,172.30.0.0/16" 
+      state: present
+      firstmatch: yes
+  
+  - name: Restart containerd
+    service:
+      name: containerd
+      daemon_reload: yes
+      state: restarted
 
   - name: Remove swapfile from /etc/fstab
     mount:
@@ -41,12 +67,14 @@
     apt_key:
       url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
       state: present
+    environment: "{{ proxy_env }}"
 
   - name: Adding apt repository for Kubernetes
     apt_repository:
       repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
       state: present
       filename: kubernetes.list
+    environment: "{{ proxy_env }}"
 
   - name: Install Kubernetes binaries
     apt: 
@@ -58,6 +86,7 @@
         - kubelet=1.21.0-00
         - kubeadm=1.21.0-00
         - kubectl=1.21.0-00
+    environment: "{{ proxy_env }}"
 
   - name: Configure containerd
     blockinfile:
@@ -113,6 +142,7 @@
     get_url:
       url: https://docs.projectcalico.org/v3.20/manifests/calico.yaml
       dest: /home/vagrant/calico.yaml
+    environment: "{{ proxy_env }}"
 
   - name: Add pod config to calico.yaml
     lineinfile:

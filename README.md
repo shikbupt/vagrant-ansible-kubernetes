@@ -1,14 +1,23 @@
 # vagrant-ansible-kubernetes
-Combination of Vagrant and Ansible to spin up a Kubernetes cluster
+Combination of Vagrant and Ansible to spin up a Kubernetes cluster. 
+Optimization for using in China.
+Test in Vagrant 2.2.17 & VirtualBox v6.1.24
 
 ### Prerequisites
 - Vagrant
 - Ansible
+- Proxy access to the outside
 
 ### Define amount of nodes
 in Vagrantfile:
 ```
 N = 2
+```
+
+### Set the proxy
+in master-playbook.yml and node-playbook.yml
+```
+proxy_ip: xx.xx.xx.xx:xx
 ```
 
 

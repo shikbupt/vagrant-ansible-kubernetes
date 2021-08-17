@@ -1,7 +1,24 @@
 ---
 - hosts: all
   become: true
+  vars:
+    proxy_ip: xx.xx.xx.xx:xx
+    proxy_env:
+      http_proxy: "http://{{ proxy_ip }}"
+      https_proxy: "http://{{ proxy_ip }}"
+      all_proxy: "socks5://{{ proxy_ip }}"
   tasks:
+  - name: copy update_apt_source.sh
+    copy:
+      src: "./update_apt_source.sh"
+      dest: '/etc/apt'
+      owner: root
+      group: root
+      mode: 0777
+
+  - name: update apt source.list
+    shell: /etc/apt/update_apt_source.sh
+
   - name: Install packages that allow apt to be used over HTTPS
     apt:
       name: "{{ packages }}"
@@ -15,6 +32,10 @@
       - software-properties-common 
       - gnupg2
 
+  - name: Set timezone to Asia/Shanghai
+    timezone:
+      name: Asia/Shanghai
+
   - name: Install containerd
     apt: 
       name: "{{ packages }}"
@@ -23,6 +44,20 @@
     vars:
       packages:
       - containerd
+
+  - name: containerd proxy
+    lineinfile:
+      path: /lib/systemd/system/containerd.service
+      insertafter: '^\[Service\]'
+      line: Environment="HTTP_PROXY=http://{{ proxy_ip }}" "NO_PROXY=192.168.50.10/16,10.96.0.0/12,172.30.0.0/16"
+      state: present
+      firstmatch: yes
+  
+  - name: Restart containerd
+    service:
+      name: containerd
+      daemon_reload: yes
+      state: restarted
 
   - name: Remove swapfile from /etc/fstab
     mount:
@@ -41,12 +76,14 @@
     apt_key:
       url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
       state: present
+    environment: "{{ proxy_env }}"
 
   - name: Adding apt repository for Kubernetes
     apt_repository:
       repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
       state: present
       filename: kubernetes.list
+    environment: "{{ proxy_env }}"
 
   - name: Install Kubernetes binaries
     apt: 
@@ -58,6 +95,7 @@
         - kubelet=1.21.0-00
         - kubeadm=1.21.0-00
         - kubectl=1.21.0-00
+    environment: "{{ proxy_env }}"
 
   - name: Configure containerd
     blockinfile:
@@ -96,4 +134,4 @@
     copy: src=join-command dest=/tmp/join-command.sh mode=0777
 
   - name: Join the node to cluster
-    command: sh /tmp/join-command.sh
+    command: sh /tmp/join-command.sh 
