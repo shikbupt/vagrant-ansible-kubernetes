@@ -35,3 +35,13 @@ k8s-master   Ready    control-plane,master   10m     v1.21.0
 node-1       Ready    <none>                 7m21s   v1.21.0
 node-2       Ready    <none>                 4m37s   v1.21.0
 ```
+
+### Install dashboard
+```
+kubectl apply -f dashboard.yaml
+```
+
+### Set dashboard user
+```
+kubectl apply -f dash-admin-user.yaml
+```
